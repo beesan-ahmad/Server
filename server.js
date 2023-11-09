@@ -1,35 +1,44 @@
-const express = require('express');
-const bodyParser = require('body-parser');
-const app = express();
-const port = 4008;
+const http = require('http');
+const fs = require('fs');
+const port = 3000;
 
-// Configure body-parser to handle form data
-app.use(bodyParser.urlencoded({ extended: true }));
+const server = http.createServer((req, res) => {
+    if (req.method === 'GET' && req.url === '/') {
+        // get the HTML form
+        fs.readFile(__dirname + '/index.html', (error, data) => {
+            if (error) {
+                res.writeHead(500, { 'Content-Type': 'text/plain' });//error occurred while reading the file status is 500
+                res.end('Internal Server Error');//http://localhost:3000/text/plain
+            } else {
+                res.writeHead(200, { 'Content-Type': 'text/html' });//there is no error status is 200
+                res.end(data);
+            }
+        });
+    } else if (req.method === 'POST' && req.url === '/submit') {
+        let body = '';
+        req.on('data', (chunk) => {
+            body += chunk;
+        });
 
-// A GET route to serve the HTML form
-app.get('/', (req, res) => {
-    res.sendFile(__dirname + '/index.html');
-});
+        req.on('end', () => {
+            const formData = new URLSearchParams(body);
+            const fname = formData.get('fname');
+            const lname = formData.get('lname');
 
-// A POST route to handle form submissions
-app.post('/submit', (req, res) => {
-    const { fname, lname } = req.body;
-
-    if (!fname || !lname) {
-        // Respond with a "400 Bad Request" status if either first name or last name is missing
-        res.status(400).send('ERROR 400 Bad Request: \n First name and last name are required');
+            if (!fname || !lname) {
+                res.writeHead(400, { 'Content-Type': 'text/plain' });
+                res.end(`Error 400 Bad Request:\n First name and last name must be non-empty strings`);
+            } else {
+                res.writeHead(200, { 'Content-Type': 'text/plain' });
+                res.end(`Hello, ${fname} ${lname}! Your form was submitted.`);
+            }
+        });
     } else {
-        // Respond with a "200 OK" status if both first name and last name are provided
-        res.status(200).send(`Hello, ${fname} ${lname}! Your form was submitted.`);
+        res.writeHead(404, { 'Content-Type': 'text/plain' });
+        res.end('Error 404 Not Found');//error occurred
     }
 });
 
-// Define a 404 route handler for non-existent routes like http://localhost:4008/nonexistent
-app.use((req, res) => {
-    res.status(404).send('ERROR 404 Not Found');
-});
-
-// Start the server on the selected port
-app.listen(port, () => {
+server.listen(port, () => {
     console.log(`Server is running on http://localhost:${port}`);
 });
